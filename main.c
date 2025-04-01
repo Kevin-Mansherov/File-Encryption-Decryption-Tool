@@ -16,7 +16,12 @@ int readFile(FILE*f,char* fileName, char* buffer) {
 		printf("Error with file -> %s\n", fileName);
 		return 0;
 	}
-	fread(buffer, 1, 1024, f);
+	size_t bytesRead = fread(buffer, 1, 1024, f);
+	if (bytesRead < 1024 && ferror(f)) {
+		printf("Error reading file -> %s\n", fileName);
+		return 0;
+	}
+	buffer[bytesRead] = '\0'; // Null-terminate the buffer
 	printf("File read successfully\n");
 	return 1;
 }
@@ -29,9 +34,10 @@ int writeFile(FILE*f,char* fileName, char* buffer) {
 	printf("File written successfully\n");
 	return 1;
 }
+
 char* inputFilePath() {
 	char* path;
-	printf("Enter file file path: ");
+	printf("Enter file path: ");
 	char element;
 	int offset = 0, flag = 0, size = 10;
 	path = (char*)malloc(10);
@@ -66,29 +72,35 @@ int main() {
 	FILE* input = fopen(inputFile, "r");
 	FILE* output = fopen(outputFile, "a");
 
-	if (!input || !output) {
-		printf("Error opening file\n");
-		return 0;
+	if (!input) {
+		printf("Error opening file -> %s\n",inputFile);
 	}
-	while (feof(input)) {
-		buffer = (char*)malloc(1024);
-		encryptedBuffer = (char*)malloc(1024);
+	else if (!output) {
+		printf("Error opening file -> %s\n",outputFile);
+	}
+	else {
+		while (!feof(input)) {
+				buffer = (char*)malloc(1024);
+				encryptedBuffer = (char*)malloc(1024);
 
-		if (!readFile(input,inputFile, buffer)) {
-			printf("Error\n");
-			return 0;
+				if (!readFile(input,inputFile, buffer)) {
+					printf("Error while reading file.\n");
+					return 0;
+				}
+
+				encrypt_decrypt(buffer, encryptedBuffer, key);
+
+				if (!writeFile(output,outputFile, encryptedBuffer)) {
+					printf("Error while writing to file.\n");
+					return 0;
+				}
+
+				free(buffer);
+				free(encryptedBuffer);
 		}
 
-		encrypt_decrypt(buffer, encryptedBuffer, key);
-
-		if (!writeFile(output,outputFile, encryptedBuffer)) {
-			printf("Error\n");
-			return 0;
-		}
-
-		free(buffer);
-		free(encryptedBuffer);
+		fclose(input);
+		fclose(output);
 	}
-
 	return 0;
 }
